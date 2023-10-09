@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+
+Globals:
+  Function:
+    Timeout: 30
+    CodeUri: .
+    Runtime: python3.9
+    Architectures:
+      - arm64
+
+Resources:
+  KinesisProducer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: kinesis_producer.lambda_handler
+      FunctionName: data-platform-kinesis-producer
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - "*"
+            Resource:
+              - "*"
+      Events:
+        ApiGateway:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+            RestApiId: !Ref LambdaApiGateway
+  LambdaApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: data-platform
+      StageName: api
+  
+  LandingBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 2bcloud-data-lake-demo-landing-zone
+  
+  FirehoseRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 2bcloud-data-lake-demo-firehose-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: 2bcloud-data-lake-demo-firehose-role
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: 
+                  - !Sub "arn:aws:s3:::${LandingBucket}/*"
+                  - !GetAtt LandingBucket.Arn
+
+Outputs:
+  ApiGateway:
+    Value: !Sub "https://${LambdaApiGateway}.execute-api.${AWS::Region}.amazonaws.com/api/"
