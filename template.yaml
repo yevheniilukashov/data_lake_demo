@@ -105,7 +105,7 @@ Resources:
           SizeInMBs: 128
           IntervalInSeconds: 60
         CompressionFormat: GZIP
-        Prefix: !Sub '!{partitionKeyFromQuery:api}/date_dt=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}-!{timestamp:HH}/'
+        Prefix: !Sub '!{partitionKeyFromQuery:api}/load_dt=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}-!{timestamp:HH}/'
         ErrorOutputPrefix: 'error/'
         DynamicPartitioningConfiguration:
           Enabled: true
