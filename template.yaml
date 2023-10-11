@@ -164,3 +164,4 @@ Resources:
 Outputs:
   ApiGateway:
     Value: !Sub "https://${LambdaApiGateway}.execute-api.${AWS::Region}.amazonaws.com/api/"
+
