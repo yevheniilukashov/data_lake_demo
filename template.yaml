@@ -1,6 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Parameters:
+  NAME:
+    Type: String
+  REGION:
+    Type: String
+  BRANCH:
+    Type: String
 
 Globals:
   Function:
@@ -15,14 +22,29 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: kinesis_producer.lambda_handler
-      FunctionName: data-platform-kinesis-producer
+      FunctionName: !Sub "${AWS::StackName}-kinesis-producer"
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          FIREHOSE: !Ref KinesisFirehose
       Policies:
         - Statement:
           - Effect: Allow
             Action:
-              - "*"
+              - "cloudwatch:CreateLogStream"
+              - "cloudwatch:CreateLogGroup"
             Resource:
               - "*"
+          - Effect: Allow
+            Action:
+              - "kms:Decrypt"
+            Resource:
+              - !GetAtt KMSKey.Arn
+          - Effect: Allow
+            Action:
+              - "firehose:PutRecordBatch"
+            Resource:
+              - !GetAtt KinesisFirehose.Arn
       Events:
         ApiGateway:
           Type: Api
@@ -33,18 +55,28 @@ Resources:
   LambdaApiGateway:
     Type: AWS::Serverless::Api
     Properties:
-      Name: data-platform
+      Name: !Sub "${AWS::StackName}"
       StageName: api
   
   LandingBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: 2bcloud-data-lake-demo-landing-zone
+      BucketName: !Sub "${AWS::StackName}-landing-zone"
+  
+  CleanBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-clean-zone"
+  
+  CuratedBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-curated-zone"
   
   FirehoseRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: 2bcloud-data-lake-demo-firehose-role
+      RoleName: !Sub "${AWS::StackName}-firehose-role"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -53,7 +85,7 @@ Resources:
               Service: firehose.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: 2bcloud-data-lake-demo-firehose-role
+        - PolicyName: !Sub ${AWS::StackName}-firehose-role
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -65,10 +97,22 @@ Resources:
                 Resource: 
                   - !Sub "arn:aws:s3:::${LandingBucket}/*"
                   - !GetAtt LandingBucket.Arn
+              - Effect: Allow
+                Action:
+                  - kms:GenerateDataKey
+                Resource: 
+                  - !GetAtt KMSKey.Arn
+  
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Enabled: true
+      EnableKeyRotation: true
+
   KinesisFirehose:
     Type: 'AWS::KinesisFirehose::DeliveryStream'
     Properties:
-      DeliveryStreamName: 2bcloud-data-lake-demo-firehose
+      DeliveryStreamName: !Sub "${AWS::StackName}-firehose"
       ExtendedS3DestinationConfiguration:
         BucketARN: !GetAtt LandingBucket.Arn
         RoleARN: !GetAtt FirehoseRole.Arn
@@ -76,36 +120,22 @@ Resources:
           SizeInMBs: 128
           IntervalInSeconds: 60
         CompressionFormat: GZIP
-        Prefix: !Sub '!{partitionKeyFromQuery:inputType}/year=!{timestamp:yyyy}-month=!{timestamp:MM}-day=!{timestamp:dd}-hour=!{timestamp:HH}/'
+        Prefix: !Sub '!{partitionKeyFromQuery:api}/date_dt=!{timestamp:yyyy}-!{timestamp:MM}-!{timestamp:dd}-!{timestamp:HH}/'
         ErrorOutputPrefix: 'error/'
         DynamicPartitioningConfiguration:
           Enabled: true
-          RetryOptions:
-            DurationInSeconds: 300
         ProcessingConfiguration:
           Enabled: true
           Processors:
           - Type: MetadataExtraction
             Parameters:
             - ParameterName: MetadataExtractionQuery
-              ParameterValue: "{inputType:.inputType}"
+              ParameterValue: "{api:.api}"
             - ParameterName: JsonParsingEngine
               ParameterValue: JQ-1.6
-        #DataFormatConversionConfiguration:
-        #  SchemaConfiguration:
-        #    CatalogId: !Ref AWS::AccountId
-        #    RoleARN: !GetAtt deliveryRole.Arn
-        #    DatabaseName: !Ref GlueDatabase
-        #    TableName: !Ref GlueTable
-        #    Region: !Ref AWS::Region
-        #    VersionId: LATEST
-        #  InputFormatConfiguration:
-        #    Deserializer:
-        #      OpenXJsonSerDe: {}
-        #  OutputFormatConfiguration:
-        #    Serializer:
-        #      ParquetSerDe: {}
-        #  Enabled: True
+        EncryptionConfiguration:
+          KMSEncryptionConfig:
+            AWSKMSKeyARN: !GetAtt KMSKey.Arn
 
 
 Outputs:
