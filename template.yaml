@@ -58,21 +58,6 @@ Resources:
       Name: !Sub "${AWS::StackName}"
       StageName: api
   
-  LandingBucket:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Sub "${AWS::StackName}-landing-zone"
-  
-  CleanBucket:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Sub "${AWS::StackName}-clean-zone"
-  
-  CuratedBucket:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Sub "${AWS::StackName}-curated-zone"
-  
   FirehoseRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -137,6 +122,20 @@ Resources:
           KMSEncryptionConfig:
             AWSKMSKeyARN: !GetAtt KMSKey.Arn
 
+  LandingBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-landing-zone"
+  
+  CleanBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-clean-zone"
+  
+  CuratedBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-curated-zone"
 
 Outputs:
   ApiGateway:
