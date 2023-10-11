@@ -127,15 +127,39 @@ Resources:
     Properties:
       BucketName: !Sub "${AWS::StackName}-landing-zone"
   
+  LandingDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "${AWS::StackName}-landing-zone"
+        LocationUri: !Sub 's3://${LandingBucket}/'
+  
   CleanBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Sub "${AWS::StackName}-clean-zone"
   
+  CleanDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "${AWS::StackName}-clean-zone"
+        LocationUri: !Sub 's3://${CleanBucket}/'
+  
   CuratedBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Sub "${AWS::StackName}-curated-zone"
+
+  CuratedDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "${AWS::StackName}-curated-zone"
+        LocationUri: !Sub 's3://${CuratedBucket}/'
 
 Outputs:
   ApiGateway:
